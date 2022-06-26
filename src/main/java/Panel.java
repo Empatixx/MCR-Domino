@@ -239,14 +239,17 @@ public class Panel extends JPanel implements Runnable{
                                 }
                             }
                         } else {
-                            createDuplicateSpoj(x,y,false);
+                            if(!VznikneLichy(x,y,false) && (getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1){
+                                createDuplicateSpoj(x,y,false);
+                            }
                         }
                         return;
                     }
                     if(VznikneLichy(x,y,false)){ // zamezuje vytvoreni vytvoreni oblasti s lichym poctem
                         return;
                     }
-                    if(!used[y][x+1] && !used[y][x]  && checkRotations(x,y,x+1,y)){
+                    if(!used[y][x+1] && !used[y][x]
+                            && ((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)){
                         used[y][x+1] = true;
                         used[y][x] = true;
                         useDomino(value1,value2,x,y);
@@ -272,14 +275,17 @@ public class Panel extends JPanel implements Runnable{
                                 }
                             }
                         } else {
-                            createDuplicateSpoj(x,y,true);
+                            if(!VznikneLichy(x,y,true) && (getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2){
+                                createDuplicateSpoj(x,y,true);
+                            }
                         }
                         return;
                     }
                     if(VznikneLichy(x,y,true)){ // zamezuje vytvoreni vytvoreni oblasti s lichym poctem
                         return;
                     }
-                    if(!used[y+1][x] && !used[y][x] && checkRotations(x,y,x,y+1)){
+                    if(!used[y+1][x] && !used[y][x]
+                            && ((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)){
                         used[y+1][x] = true;
                         used[y][x] = true;
                         useDomino(value1,value2,x,y);
@@ -533,5 +539,14 @@ public class Panel extends JPanel implements Runnable{
                 }
             }
         } while (zmena);
+    }
+    // returns if cell can be vertical/horizontal or universal
+    // 1 - horizontal
+    // 2 - vertical
+    // 3 - universal
+    private int getOrientation(int x, int y){
+        if(map[y][x] == 1 || map[y][x] == 4 || map[y][x] == 5 || map[y][x] == 0) return 3;
+        else if(rotated[y][x]) return 2;
+        else return 1;
     }
 }
