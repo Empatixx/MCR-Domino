@@ -6,6 +6,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -339,6 +341,80 @@ public class Panel extends JPanel implements Runnable{
         DuplicateSpoj spoj = new DuplicateSpoj(x, y, vertical);
         dupSpoje.add(spoj);
     }
+    private static class notUsedCell{
+        public int x,y;
+        public notUsedCell(int x, int y){
+            this.x = x;
+            this.y = y;
+        }
+    }
+    public boolean VznikneLichy(int x, int y, boolean vertical){
+        Queue<notUsedCell> emptyCells = new LinkedList<>();
+        boolean[][] cloneUsed = new boolean[7][8];
+        for(int i = 0;i<7;i++){
+            System.arraycopy(used[i], 0, cloneUsed[i], 0, 8);
+        }
+        if(vertical){
+            cloneUsed[y][x] = true;
+            cloneUsed[y+1][x] = true;
+        } else {
+            cloneUsed[y][x] = true;
+            cloneUsed[y][x+1] = true;
+        }
+        for(int i = 0;i<7;i++){
+            for(int j = 0;j<8;j++){
+                if(cloneUsed[i][j]) continue;
+
+                int xCell = j;
+                int yCell = i;
+                int count = 1;
+                do{
+                    if(!emptyCells.isEmpty()){
+                        notUsedCell cell = emptyCells.remove();
+                        xCell = cell.x;
+                        yCell = cell.y;
+                    }
+                    boolean up = true;
+                    boolean left = true;
+                    boolean down = true;
+                    boolean right = true;
+
+                    if(yCell > 0) up = cloneUsed[yCell-1][xCell];
+                    if(yCell < 6) down = cloneUsed[yCell+1][xCell];
+                    if(xCell < 7) right = cloneUsed[yCell][xCell+1];
+                    if(xCell > 0) left = cloneUsed[yCell][xCell-1];
+
+                    if(!up){
+                        count++;
+                        emptyCells.add(new notUsedCell(xCell,yCell-1));
+                        cloneUsed[yCell][xCell] = true;
+                        cloneUsed[yCell-1][xCell] = true;
+                    }
+                    if(!down){
+                        count++;
+                        emptyCells.add(new notUsedCell(xCell,yCell+1));
+                        cloneUsed[yCell][xCell] = true;
+                        cloneUsed[yCell+1][xCell] = true;
+                    }
+                    if(!left){
+                        count++;
+                        emptyCells.add(new notUsedCell(xCell-1,yCell));
+                        cloneUsed[yCell][xCell] = true;
+                        cloneUsed[yCell][xCell-1] = true;
+                    }
+                    if(!right){
+                        count++;
+                        emptyCells.add(new notUsedCell(xCell+1,yCell));
+                        cloneUsed[yCell][xCell] = true;
+                        cloneUsed[yCell][xCell+1] = true;
+                    }
+                } while (!emptyCells.isEmpty());
+
+                if(count % 2 == 1) return true;
+            }
+        }
+        return false;
+    }
     /*public boolean VznikneLichy(int x, int y, boolean vertical){
         if(vertical){
             boolean[][] cloneUsed = new boolean[7][8];
@@ -520,9 +596,10 @@ public class Panel extends JPanel implements Runnable{
                             Spoj spoj = new Spoj(x,y, false);
                             spoje.add(spoj);
                             zmena = true;
+                            return;
                         }
                     }
-                    if(y < 6){
+                    if(y < 6 && !zmena){
                         value1 = map[y+1][x];
                         value2 = map[y][x];
                         down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
@@ -535,6 +612,8 @@ public class Panel extends JPanel implements Runnable{
                             Spoj spoj = new Spoj(x,y, true);
                             spoje.add(spoj);
                             zmena = true;
+                            return;
+
                         }
                     }
                 }
@@ -562,9 +641,11 @@ public class Panel extends JPanel implements Runnable{
                             Spoj spoj = new Spoj(x,y, false);
                             spoje.add(spoj);
                             zmena = true;
+                            return;
+
                         }
                     }
-                    if(y < 6){
+                    if(y < 6 && !zmena){
                         value1 = map[y+1][x];
                         value2 = map[y][x];
                         down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
@@ -577,6 +658,8 @@ public class Panel extends JPanel implements Runnable{
                             Spoj spoj = new Spoj(x,y, true);
                             spoje.add(spoj);
                             zmena = true;
+                            return;
+
                         }
                     }
                 }
@@ -603,9 +686,11 @@ public class Panel extends JPanel implements Runnable{
                             Spoj spoj = new Spoj(x,y, false);
                             spoje.add(spoj);
                             zmena = true;
+                            return;
+
                         }
                     }
-                    if(y < 6){
+                    if(y < 6 && !zmena){
                         value1 = map[y+1][x];
                         value2 = map[y][x];
                         down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
@@ -617,11 +702,25 @@ public class Panel extends JPanel implements Runnable{
                             Spoj spoj = new Spoj(x,y, true);
                             spoje.add(spoj);
                             zmena = true;
+                            return;
+
                         }
                     }
                 }
             }
         } while (zmena);
+        for(int y = 0;y<7;y++){
+            for(int x = 0;x<8;x++) {
+                if(!used[y][x]){
+                    int orientation = getOrientation(x,y);
+                    if(orientation == 2){
+
+                    } else if(orientation == 1){
+
+                    }
+                }
+            }
+        }
     }
     // returns if cell can be vertical/horizontal or universal
     // 1 - horizontal
