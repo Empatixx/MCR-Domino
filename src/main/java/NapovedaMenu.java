@@ -9,7 +9,6 @@ import javax.swing.event.*;
 public class NapovedaMenu extends JPanel {
     private JButton jcomp1;
     private JButton jcomp2;
-
     public NapovedaMenu() {
         //construct components
         jcomp1 = new JButton ("Napoveda");
@@ -24,7 +23,8 @@ public class NapovedaMenu extends JPanel {
         jcomp1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                panel.napoveda();
+                //panel.napoveda();
+                panel.backtrace();
             }
         });
         add (jcomp2);
