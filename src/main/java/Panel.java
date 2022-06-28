@@ -57,7 +57,7 @@ public class Panel extends JPanel implements Runnable{
             }
         }
         // zde zmenime jaky soubor chceme pouzit
-        String soubor = "map\\priklad05.bmp";
+        String soubor = "map\\priklad01.bmp";
         try {
             pozadi = ImageIO.read(new File(soubor));
         } catch (IOException e) {
@@ -339,7 +339,7 @@ public class Panel extends JPanel implements Runnable{
         DuplicateSpoj spoj = new DuplicateSpoj(x, y, vertical);
         dupSpoje.add(spoj);
     }
-    public boolean VznikneLichy(int x, int y, boolean vertical){
+    /*public boolean VznikneLichy(int x, int y, boolean vertical){
         if(vertical){
             boolean[][] cloneUsed = new boolean[7][8];
             for(int i = 0;i<7;i++){
@@ -350,6 +350,7 @@ public class Panel extends JPanel implements Runnable{
             for(int i = 0;i<7;i++){
                 for(int j = 0;j<8;j++){
                     if(cloneUsed[i][j]) continue;
+
                     boolean up = true;
                     boolean left = true;
                     boolean down = true;
@@ -405,7 +406,7 @@ public class Panel extends JPanel implements Runnable{
 
         }
         return false;
-    }
+    }*/
 
     public void ulozitReseni() {
         Rectangle screenRect = new Rectangle(Main.window.getBounds());
@@ -509,33 +510,115 @@ public class Panel extends JPanel implements Runnable{
                     if(x < 7 && !zmena){
                         value1 = map[y][x];
                         value2 = map[y][x+1];
-                        right = used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false);
-                        if(!right){
-                            right = !checkRotations(x+1,y,x,y);
-                        }
+                        right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                                || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
+                                || !((getOrientation(x,y) & 3) != 3 && (getOrientation(x+1,y) & 3) != 3);
                         if(!right){
                             used[y][x+1] = true;
                             used[y][x] = true;
                             useDomino(value1,value2,x,y);
                             Spoj spoj = new Spoj(x,y, false);
                             spoje.add(spoj);
+                            zmena = true;
                         }
                     }
-                    /*if(y < 6){
+                    if(y < 6){
                         value1 = map[y+1][x];
                         value2 = map[y][x];
-                        down = used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true);
-                        if(!down){
-                            down = !checkRotations(x,y,x,y+1);
-                        }
+                        down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                                || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
+                                || !((getOrientation(x,y) & 3) != 3 && (getOrientation(x,y+1) & 3) != 3);
                         if(!down){
                             used[y+1][x] = true;
                             used[y][x] = true;
                             useDomino(value1,value2,x,y);
                             Spoj spoj = new Spoj(x,y, true);
                             spoje.add(spoj);
+                            zmena = true;
                         }
-                    }*/
+                    }
+                }
+            }
+        } while (zmena);
+        do{
+            zmena = false;
+            for(int y = 0;y<7;y++){
+                for(int x = 0;x<8;x++){
+                    if(used[y][x]) continue;
+                    boolean down = true;
+                    boolean right = true;
+                    int value1;
+                    int value2;
+                    if(x < 7 && !zmena){
+                        value1 = map[y][x];
+                        value2 = map[y][x+1];
+                        right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                                || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
+                                || !((getOrientation(x,y) & 3) != 3 || (getOrientation(x+1,y) & 3) != 3);
+                        if(!right){
+                            used[y][x+1] = true;
+                            used[y][x] = true;
+                            useDomino(value1,value2,x,y);
+                            Spoj spoj = new Spoj(x,y, false);
+                            spoje.add(spoj);
+                            zmena = true;
+                        }
+                    }
+                    if(y < 6){
+                        value1 = map[y+1][x];
+                        value2 = map[y][x];
+                        down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                                || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
+                                || !((getOrientation(x,y) & 3) != 3 || (getOrientation(x,y+1) & 3) != 3);
+                        if(!down){
+                            used[y+1][x] = true;
+                            used[y][x] = true;
+                            useDomino(value1,value2,x,y);
+                            Spoj spoj = new Spoj(x,y, true);
+                            spoje.add(spoj);
+                            zmena = true;
+                        }
+                    }
+                }
+            }
+        } while (zmena);
+        do{
+            zmena = false;
+            for(int y = 0;y<7;y++){
+                for(int x = 0;x<8;x++){
+                    if(used[y][x]) continue;
+                    boolean down = true;
+                    boolean right = true;
+                    int value1;
+                    int value2;
+                    if(x < 7 && !zmena){
+                        value1 = map[y][x];
+                        value2 = map[y][x+1];
+                        right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                                || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1);
+                        if(!right){
+                            used[y][x+1] = true;
+                            used[y][x] = true;
+                            useDomino(value1,value2,x,y);
+                            Spoj spoj = new Spoj(x,y, false);
+                            spoje.add(spoj);
+                            zmena = true;
+                        }
+                    }
+                    if(y < 6){
+                        value1 = map[y+1][x];
+                        value2 = map[y][x];
+                        down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                                || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2);
+                        if(!down){
+                            used[y+1][x] = true;
+                            used[y][x] = true;
+                            useDomino(value1,value2,x,y);
+                            Spoj spoj = new Spoj(x,y, true);
+                            spoje.add(spoj);
+                            zmena = true;
+                        }
+                    }
                 }
             }
         } while (zmena);

@@ -48,6 +48,8 @@ public class NapovedaMenu extends JPanel {
         frame.setDefaultCloseOperation (JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().add (new NapovedaMenu());
         frame.pack();
+        frame.setLocationRelativeTo(Main.window);
+        frame.setLocation(Main.window.getX()-frame.getWidth(),Main.window.getY());
         frame.setVisible (true);
     }
 }

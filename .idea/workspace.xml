@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="608fa690-8748-47af-8746-fd0f110259ee" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="608fa690-8748-47af-8746-fd0f110259ee" name="Changes" comment="dominos orientation fixed">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/RESENI.bmp" beforeDir="false" afterPath="$PROJECT_DIR$/RESENI.bmp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/NapovedaMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/NapovedaMenu.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/Panel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Panel.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -107,6 +107,14 @@
       <option name="presentableId" value="Default" />
       <updated>1656086344640</updated>
     </task>
+    <task id="LOCAL-00001" summary="dominos orientation fixed">
+      <created>1656278631605</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1656278631605</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -119,6 +127,10 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="dominos orientation fixed" />
+    <option name="LAST_COMMIT_MESSAGE" value="dominos orientation fixed" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
