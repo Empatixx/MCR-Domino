@@ -9,13 +9,24 @@ import javax.swing.event.*;
 public class NapovedaMenu extends JPanel {
     private JButton jcomp1;
     private JButton jcomp2;
+    private static JComboBox box;
     public NapovedaMenu() {
         //construct components
         jcomp1 = new JButton ("Napoveda");
         jcomp2 = new JButton ("Vyresit");
+        String[] maps = new String[26];
+        for(int i = 1;i<27;i++){
+            if(i < 10){
+                maps[i-1] = "priklad0"+i+".bmp";
+            } else {
+                maps[i-1] = "priklad"+i+".bmp";
+            }
+        }
+        box = new JComboBox<>(maps);
+
 
         //adjust size and set layout
-        setPreferredSize (new Dimension (182, 104));
+        setPreferredSize (new Dimension (182, 120));
         setLayout (null);
 
         //add components
@@ -34,9 +45,11 @@ public class NapovedaMenu extends JPanel {
                 panel.vyresit();
             }
         });
+        add(box);
         //set component bounds (only needed by Absolute Positioning)
         jcomp1.setBounds (45, 20, 100, 20);
         jcomp2.setBounds (45, 50, 100, 20);
+        box.setBounds(45,90,100,20);
 
     }
 
@@ -44,12 +57,17 @@ public class NapovedaMenu extends JPanel {
     static Panel panel;
     public static void run (Panel p) {
         panel = p;
-        JFrame frame = new JFrame ("Napoveda");
-        frame.setDefaultCloseOperation (JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().add (new NapovedaMenu());
-        frame.pack();
-        frame.setLocationRelativeTo(Main.window);
-        frame.setLocation(Main.window.getX()-frame.getWidth(),Main.window.getY());
-        frame.setVisible (true);
+        JFrame window = new JFrame ("Napoveda");
+        window.setDefaultCloseOperation (JFrame.EXIT_ON_CLOSE);
+        window.getContentPane().add (new NapovedaMenu());
+        window.pack();
+        window.setLocationRelativeTo(Main.window);
+        window.setLocation(Main.window.getX()-window.getWidth(),Main.window.getY());
+        window.setVisible (true);
+    }
+
+    public static String getMapName(){
+        if(box == null) return null;
+        return (String)box.getSelectedItem();
     }
 }
