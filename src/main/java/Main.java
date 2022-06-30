@@ -11,7 +11,6 @@ public class Main {
         Panel panel = new Panel();
         window.add(panel);
         window.addMouseListener(new MouseHandler(panel));
-        window.setUndecorated(true); // <-- the title bar is removed here
 
         window.pack();
 

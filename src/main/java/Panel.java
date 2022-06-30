@@ -5,22 +5,16 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Panel extends JPanel implements Runnable{
     public final static int WIDTH = 482;
-    public final static int HEIGHT = 423;
+    public final static int HEIGHT = 423+100;
 
     private Thread thread;
-    private int mouseX;
-    private int mouseY;
 
-    private int tileSize = 60;
     public final static int offsetImageX = 2;
     public final static int offsetImageY = 3;
 
@@ -34,11 +28,15 @@ public class Panel extends JPanel implements Runnable{
     private boolean saved = false;
     private String loadedMap = "priklad01.bmp";
 
-    private ArrayList<Spoj> spoje = new ArrayList<>();
-    private ArrayList<DuplicateSpoj> dupSpoje = new ArrayList<>();
+    private final ArrayList<Spoj> spoje = new ArrayList<>();
+    private final ArrayList<DuplicateSpoj> dupSpoje = new ArrayList<>();
     private final ArrayList<NapovedaSpoj> napovedaSpoje = new ArrayList<>();
-    private final Deque<LastMove> lastMoves = new LinkedList<>();
-    private final ArrayList<SpatnySpoj> spatneSpoje = new ArrayList<>();
+
+    private int renderTextType = -1;
+    private static final int LICHY_ERROR = 0;
+    private static final int DOKONCENI = 1;
+    private static final int DUPLICATE = 2;
+    private long lastTimeChangedTextType;
 
     private final Lock lock = new ReentrantLock();
 
@@ -49,23 +47,17 @@ public class Panel extends JPanel implements Runnable{
             this.y = y;
         }
     }
-    private static class SpatnySpoj {
-        public int x,y;
-        public boolean vertical;
-        public SpatnySpoj(int x, int y, boolean v){
-            this.x = x;
-            this.y = y;
-            this.vertical = v;
-        }
-    }
 
     public Panel(){
         this.setPreferredSize(new Dimension(WIDTH,HEIGHT));
         this.setBackground(Color.black);
         this.setDoubleBuffered(true);
     }
+
+    /**
+     * initial function
+     */
     public void start(){
-        // nastaveni sady
         dominos = new Domino[7*4];
         int value1 = 0;
         int value2 = 0;
@@ -79,9 +71,6 @@ public class Panel extends JPanel implements Runnable{
                 value1 = shift;
             }
         }
-        // funkcni: 1,2,4,8,9,10
-        // nefunkci: 3
-        // zde zmenime jaky soubor chceme pouzit
         String soubor = "map\\"+loadedMap;
         try {
             pozadi = ImageIO.read(new File(soubor));
@@ -106,7 +95,6 @@ public class Panel extends JPanel implements Runnable{
             } catch (Exception e){
 
             }
-            vyresit();
 
 
         }
@@ -126,9 +114,7 @@ public class Panel extends JPanel implements Runnable{
 
                 spoje.clear();
                 dupSpoje.clear();
-                spatneSpoje.clear();
                 napovedaSpoje.clear();
-                lastMoves.clear();
                 saved = false;
 
                 dominos = new Domino[7*4];
@@ -182,8 +168,10 @@ public class Panel extends JPanel implements Runnable{
             }
         }
         if(canSave && !saved){
-           ulozitReseni();
-           saved = true;
+            renderTextType = DOKONCENI;
+            lastTimeChangedTextType = System.currentTimeMillis();
+            ulozitReseni();
+            saved = true;
         }
     }
     public void paintComponent(Graphics g){
@@ -241,8 +229,27 @@ public class Panel extends JPanel implements Runnable{
                 lock.unlock();
             }
         }
+        if(System.currentTimeMillis() - lastTimeChangedTextType < 2000){
+            if(renderTextType != -1){
+                g.setFont(new Font("TimesRoman", Font.PLAIN, 16));
+                g2.setColor(Color.white);
+                if(renderTextType == LICHY_ERROR){
+                    g2.drawString("Vznikl lichy pocet bunek, proto nelze dokoncit tah.",423/2-140,482);
+                } else if (renderTextType == DOKONCENI){
+                    g2.drawString("Vyhral jsi tuhle hru!",423/2-20,482);
+                } else if (renderTextType == DUPLICATE){
+                    g2.drawString("Domino, ktere se snazis oznacit, je jiz nekde pouzite.",423/2-140,482);
+                }
+            }
+        }
+
         g2.dispose();
     }
+
+    /**
+     * Loads our map
+     * @param soubor filepath
+     */
     public void loadMap(String soubor){
         BufferedImage img = null;
         try {
@@ -277,12 +284,17 @@ public class Panel extends JPanel implements Runnable{
             }
         }
     }
+
+    /**
+     * mouse handler, checks if we clicked some dominos
+     * @param e
+     */
     public void mouseClick(MouseEvent e){
         Point mouse = MouseInfo.getPointerInfo().getLocation();
-        mouseX = (int) mouse.getX() - this.getLocationOnScreen().x;
-        mouseY = (int) mouse.getY() - this.getLocationOnScreen().y;
+        int mouseX = (int) mouse.getX() - this.getLocationOnScreen().x;
+        int mouseY = (int) mouse.getY() - this.getLocationOnScreen().y;
 
-        Rectangle mouseR = new Rectangle(mouseX,mouseY,10,10);
+        Rectangle mouseR = new Rectangle(mouseX, mouseY,10,10);
 
         for(int y = 0;y<7;y++){
             for(int x = 0;x<8;x++){
@@ -360,6 +372,13 @@ public class Panel extends JPanel implements Runnable{
         }
 
     }
+
+    /**
+     * checks if domino was already used
+     * @param a - value1 of domino
+     * @param b - value2 of domino
+     * @return if domino was used
+     */
     public boolean isUsed(int a,int b){
         for(Domino d : dominos){
             if((d.getValue1() == a && d.getValue2() == b) || (d.getValue2() == a && d.getValue1() == b)){
@@ -368,24 +387,46 @@ public class Panel extends JPanel implements Runnable{
         }
         return false;
     }
+
+    /**
+     * use domino, so we can't use it again
+     * @param a - value1 of domino
+     * @param b - value2 of domino
+     * @param x - col of map
+     * @param y - row of map
+     * @param v - if move was vertical
+     */
     public void useDomino(int a, int b, int x, int y, boolean v){
         for(Domino d : dominos){
             if((d.getValue1() == a && d.getValue2() == b) || (d.getValue2() == a && d.getValue1() == b)){
                 d.setUsed(true);
                 d.setLoc(x,y);
-                lastMoves.add(new LastMove(x,y,d,v));
             }
         }
     }
+
+    /**
+     * release domino, so we can use it again
+     * @param a - value1 of domino
+     * @param b - value2 of domino
+     */
     public void freeDomino(int a, int b){
         for(Domino d : dominos){
             if((d.getValue1() == a && d.getValue2() == b) || (d.getValue2() == a && d.getValue1() == b)){
                 d.setUsed(false);
                 d.setLoc(-1,-1);
-                lastMoves.removeIf(move -> move.isDomino(d));
             }
         }
     }
+
+    /**
+     * if re-clicking already marked domino can be demarked
+     * @param a - value1 of domino
+     * @param b - value2 of domino
+     * @param x - col of map
+     * @param y - row of map
+     * @return true if can
+     */
     public boolean canRemove(int a,int b, int x, int y){
         for(Domino d : dominos){
             if(((d.getValue1() == a && d.getValue2() == b) || (d.getValue2() == a && d.getValue1() == b))
@@ -395,6 +436,13 @@ public class Panel extends JPanel implements Runnable{
         }
         return false;
     }
+
+    /**
+     * creates visual that this domino was already used
+     * @param x - col of map
+     * @param y - row of map
+     * @param vertical - if move was vertical
+     */
     public void createDuplicateSpoj(int x,int y, boolean vertical){
         for(DuplicateSpoj spoj : dupSpoje){
             if(spoj.isAlready(x,y)){
@@ -403,7 +451,17 @@ public class Panel extends JPanel implements Runnable{
         }
         DuplicateSpoj spoj = new DuplicateSpoj(x, y, vertical);
         dupSpoje.add(spoj);
+        renderTextType = DUPLICATE;
+        lastTimeChangedTextType = System.currentTimeMillis();
     }
+
+    /**
+     * checks if previous move didnt make any odd regions (1,3,5 cells together etc.)
+     * @param x - col of map
+     * @param y - row of map
+     * @param vertical - if previous move was vertical
+     * @return true if there is any region with odd cells
+     */
     public boolean VznikneLichy(int x, int y, boolean vertical){
         Queue<Cell> emptyCells = new LinkedList<>();
         boolean[][] cloneUsed = new boolean[7][8];
@@ -466,25 +524,36 @@ public class Panel extends JPanel implements Runnable{
                     }
                 } while (!emptyCells.isEmpty());
 
-                if(count % 2 == 1) return true;
+                if(count % 2 == 1){
+                    renderTextType = LICHY_ERROR;
+                    lastTimeChangedTextType = System.currentTimeMillis();
+                    return true;
+                }
             }
         }
         return false;
     }
+
+    /**
+     * saves solution to bmp file
+     */
     public void ulozitReseni() {
-        Rectangle screenRect = new Rectangle(Main.window.getBounds());
-        BufferedImage capture = null;
+        BufferedImage image = new BufferedImage(getWidth(), getHeight()-100, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics2D = image.createGraphics();
+        this.paint(graphics2D);
         try {
-            capture = new Robot().createScreenCapture(screenRect);
-        } catch (AWTException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            ImageIO.write(capture, "bmp", new File("RESENI.bmp"));
+            ImageIO.write(image, "bmp", new File("RESENI.bmp"));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
+
+    /**
+     * returns if current image is rotated vertically or horizontally
+     * @param cislo - number in image
+     * @param bi - raw buffer of image
+     * @return true if image is rotated vertically
+     */
     public boolean isRotated(int cislo, BufferedImage bi){
         if(cislo == 0 || cislo == 1 || cislo == 5 || cislo == 4) return false;
         else {
@@ -506,9 +575,10 @@ public class Panel extends JPanel implements Runnable{
         }
     }
 
+    /**
+     * function for hint, suggestion for next move
+     */
     public void napoveda(){
-    }
-    public void vyresit(){
         Queue<Cell> cells = new LinkedList<>();
         // these have no errors
         cells.add(new Cell(0,0));
@@ -525,9 +595,8 @@ public class Panel extends JPanel implements Runnable{
             cells.add(new Cell(0,i));
             cells.add(new Cell(7,i));
         }
-        boolean zmena;
         // corners
-        do {
+        do{
             Cell cell = cells.remove();
             int x = cell.x;
             int y = cell.y;
@@ -540,15 +609,11 @@ public class Panel extends JPanel implements Runnable{
                 value2 = map[y][x + 1];
                 right = used[y][x] || used[y][x + 1] || isUsed(value1, value2) || VznikneLichy(x, y, false)
                         || !((getOrientation(x, y) & 1) == 1)
-                        || (getOrientation(x, y) & 3) == 3
-                        || isSpatnySpoj(x,y,false);
+                        || (getOrientation(x, y) & 3) == 3;
 
                 if (!right) {
-                    useDomino(value1, value2, x, y,false);
-                    used[y][x + 1] = true;
-                    used[y][x] = true;
-                    Spoj spoj = new Spoj(x, y, false);
-                    spoje.add(spoj);
+                    napovedaSpoje.add(new NapovedaSpoj(x,y,false));
+                    return;
                 }
             }
             if (x - 1 >= 0) {
@@ -556,15 +621,10 @@ public class Panel extends JPanel implements Runnable{
                 value2 = map[y][x - 1];
                 left = used[y][x] || used[y][x - 1] || isUsed(value1, value2) || VznikneLichy(x-1, y, false)
                         || !((getOrientation(x, y) & 1) == 1)
-                        || (getOrientation(x, y) & 3) == 3
-                        || isSpatnySpoj(x - 1,y,false);
-
+                        || (getOrientation(x, y) & 3) == 3;
                 if (!left) {
-                    useDomino(value1, value2, x - 1, y,false);
-                    used[y][x - 1] = true;
-                    used[y][x] = true;
-                    Spoj spoj = new Spoj(x - 1, y, false);
-                    spoje.add(spoj);
+                    napovedaSpoje.add(new NapovedaSpoj(x-1,y,false));
+                    return;
                 }
             }
             if (y + 1 < 7) {
@@ -572,14 +632,10 @@ public class Panel extends JPanel implements Runnable{
                 value2 = map[y][x];
                 down = used[y][x] || used[y + 1][x] || isUsed(value1, value2) || VznikneLichy(x, y, true)
                         || !((getOrientation(x, y) & 2) == 2)
-                        || (getOrientation(x, y) & 3) == 3
-                        || isSpatnySpoj(x,y,true);
+                        || (getOrientation(x, y) & 3) == 3;
                 if (!down) {
-                    useDomino(value1, value2, x, y,true);
-                    used[y + 1][x] = true;
-                    used[y][x] = true;
-                    Spoj spoj = new Spoj(x, y, true);
-                    spoje.add(spoj);
+                    napovedaSpoje.add(new NapovedaSpoj(x,y,true));
+                    return;
                 }
             }
             if (y - 1 >= 0) {
@@ -587,160 +643,108 @@ public class Panel extends JPanel implements Runnable{
                 value2 = map[y][x];
                 up = used[y][x] || used[y - 1][x] || isUsed(value1, value2) || VznikneLichy(x, y-1, true)
                         || !((getOrientation(x, y) & 2) == 2)
-                        || (getOrientation(x, y) & 3) == 3
-                        || isSpatnySpoj(x,y-1,true);
+                        || (getOrientation(x, y) & 3) == 3;
                 if (!up) {
-                    useDomino(value1, value2, x, y-1,true);
-                    used[y - 1][x] = true;
-                    used[y][x] = true;
-                    Spoj spoj = new Spoj(x, y-1, true);
-                    spoje.add(spoj);
+                    napovedaSpoje.add(new NapovedaSpoj(x,y-1,true));
+                    return;
                 }
             }
-        } while (!cells.isEmpty());
-        // rotace 2x
-        do{
-            zmena = false;
-            for(int y = 0;y<7;y++){
-                for(int x = 0;x<8;x++){
-                    if(used[y][x]) continue;
-                    boolean down = true;
-                    boolean right = true;
-                    int value1;
-                    int value2;
-                    if(x < 7 && !zmena){
-                        value1 = map[y][x];
-                        value2 = map[y][x+1];
-                        right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
-                                || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
-                                || !((getOrientation(x,y) & 3) != 3 && (getOrientation(x+1,y) & 3) != 3)
-                                || isSpatnySpoj(x,y,false);
-                        if(!right){
-                            useDomino(value1,value2,x,y, false);
-                            used[y][x+1] = true;
-                            used[y][x] = true;
-                            Spoj spoj = new Spoj(x,y, false);
-                            spoje.add(spoj);
-                            zmena = true;
-                            return;
-                        }
+        } while(!cells.isEmpty());
+        // with two rotations
+        for(int y = 0;y<7;y++){
+            for(int x = 0;x<8;x++){
+                if(used[y][x]) continue;
+                boolean down;
+                boolean right;
+                int value1;
+                int value2;
+                if(x < 7){
+                    value1 = map[y][x];
+                    value2 = map[y][x+1];
+                    right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                            || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
+                            || !((getOrientation(x,y) & 3) != 3 && (getOrientation(x+1,y) & 3) != 3);
+                    if(!right){
+                        napovedaSpoje.add(new NapovedaSpoj(x,y,false));
+                        return;
                     }
-                    if(y < 6 && !zmena){
-                        value1 = map[y+1][x];
-                        value2 = map[y][x];
-                        down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
-                                || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
-                                || !((getOrientation(x,y) & 3) != 3 && (getOrientation(x,y+1) & 3) != 3)
-                                || isSpatnySpoj(x,y,true);
-                        if(!down){
-                            useDomino(value1,value2,x,y, true);
-                            used[y+1][x] = true;
-                            used[y][x] = true;
-                            Spoj spoj = new Spoj(x,y, true);
-                            spoje.add(spoj);
-                            zmena = true;
-                            return;
-                        }
+                }
+                if(y < 6){
+                    value1 = map[y+1][x];
+                    value2 = map[y][x];
+                    down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                            || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
+                            || !((getOrientation(x,y) & 3) != 3 && (getOrientation(x,y+1) & 3) != 3);
+                    if(!down){
+                        napovedaSpoje.add(new NapovedaSpoj(x,y,true));
+                        return;
                     }
                 }
             }
-        } while (zmena);
-        // rotace 1x
-        do{
-            zmena = false;
-            for(int y = 0;y<7;y++){
-                for(int x = 0;x<8;x++){
-                    if(used[y][x]) continue;
-                    boolean down = true;
-                    boolean right = true;
-                    int value1;
-                    int value2;
-                    if(x < 7 && !zmena){
-                        value1 = map[y][x];
-                        value2 = map[y][x+1];
-                        right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
-                                || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
-                                || !((getOrientation(x,y) & 3) != 3 || (getOrientation(x+1,y) & 3) != 3)
-                                || isSpatnySpoj(x,y,false);
-                        if(!right){
-                            useDomino(value1,value2,x,y, false);
-                            used[y][x+1] = true;
-                            used[y][x] = true;
-                            Spoj spoj = new Spoj(x,y, false);
-                            spoje.add(spoj);
-                            zmena = true;
-                            return;
-                        }
+        }
+        // with one rotation
+        for(int y = 0;y<7;y++){
+            for(int x = 0;x<8;x++){
+                if(used[y][x]) continue;
+                boolean down = true;
+                boolean right = true;
+                int value1;
+                int value2;
+                if(x < 7){
+                    value1 = map[y][x];
+                    value2 = map[y][x+1];
+                    right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                            || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
+                            || !((getOrientation(x,y) & 3) != 3 || (getOrientation(x+1,y) & 3) != 3);
+                    if(!right){
+                        napovedaSpoje.add(new NapovedaSpoj(x,y,false));
+                        return;
                     }
-                    if(y < 6 && !zmena){
-                        value1 = map[y+1][x];
-                        value2 = map[y][x];
-                        down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
-                                || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
-                                || !((getOrientation(x,y) & 3) != 3 || (getOrientation(x,y+1) & 3) != 3)
-                                || isSpatnySpoj(x,y,true);
-                        if(!down){
-                            useDomino(value1,value2,x,y, true);
-                            used[y+1][x] = true;
-                            used[y][x] = true;
-                            Spoj spoj = new Spoj(x,y, true);
-                            spoje.add(spoj);
-                            zmena = true;
-                            return;
+                }
+                if(y < 6){
+                    value1 = map[y+1][x];
+                    value2 = map[y][x];
+                    down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                            || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
+                            || !((getOrientation(x,y) & 3) != 3 || (getOrientation(x,y+1) & 3) != 3);
+                    if(!down){
+                        napovedaSpoje.add(new NapovedaSpoj(x,y,true));
+                        return;
+                    }
+                }
+            }
+        }
+        // without any rotations
+        for(int y = 0;y<7;y++){
+            for(int x = 0;x<8;x++){
+                if(used[y][x]) continue;
+                boolean down = true;
+                boolean right = true;
+                int value1;
+                int value2;
+                if(x < 7){
+                    value1 = map[y][x];
+                    value2 = map[y][x+1];
+                    right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                            || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1);
+                    if(!right){
+                        napovedaSpoje.add(new NapovedaSpoj(x,y,false));
+                        return;
+                    }
+                }
+                if(y < 6){
+                    value1 = map[y+1][x];
+                    value2 = map[y][x];
+                    down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                            || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2);
+                    if(!down){
+                        napovedaSpoje.add(new NapovedaSpoj(x,y,true));
+                        return;
 
-                        }
                     }
                 }
             }
-        } while (zmena);
-        // bez natoceni
-        do{
-            zmena = false;
-            for(int y = 0;y<7;y++){
-                for(int x = 0;x<8;x++){
-                    if(used[y][x]) continue;
-                    boolean down = true;
-                    boolean right = true;
-                    int value1;
-                    int value2;
-                    if(x < 7 && !zmena){
-                        value1 = map[y][x];
-                        value2 = map[y][x+1];
-                        right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
-                                || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
-                                || isSpatnySpoj(x,y,false);
-                        if(!right){
-                            useDomino(value1,value2,x,y, false);
-                            used[y][x+1] = true;
-                            used[y][x] = true;
-                            Spoj spoj = new Spoj(x,y, false);
-                            spoje.add(spoj);
-                            zmena = true;
-                            return;
-
-                        }
-                    }
-                    if(y < 6 && !zmena){
-                        value1 = map[y+1][x];
-                        value2 = map[y][x];
-                        down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
-                                || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
-                                || isSpatnySpoj(x,y,true);
-                        if(!down){
-                            useDomino(value1,value2,x,y,true);
-                            used[y+1][x] = true;
-                            used[y][x] = true;
-                            Spoj spoj = new Spoj(x,y, true);
-                            spoje.add(spoj);
-                            zmena = true;
-                            return;
-
-                        }
-                    }
-                }
-            }
-        } while (zmena);
-        correction();
+        }
     }
     // returns if cell can be vertical/horizontal or universal
     // 1 - horizontal
@@ -751,166 +755,147 @@ public class Panel extends JPanel implements Runnable{
         else if(rotated[y][x]) return 2;
         else return 1;
     }
-    public void correction(){
-        boolean rotatedCorrection = false;
-        for(int y = 0;y<7;y++) {
-            for (int x = 0; x < 8; x++) {
-                if(!used[y][x]){
-                    int value1 = map[y][x];
-                    int value2;
-                    if(getOrientation(x,y) == 1) {
-                        if (x + 1 < 8) {
-                            if((getOrientation(x+1,y) & 1) == 1){
-                                value2 = map[y][x + 1];
-                                LastMove lastMove = null;
-                                while (isUsed(value1, value2) || used[y][x + 1] || VznikneLichy(x,y,false)) {
-                                    lastMove = backtrace();
-                                }
-                                if(lastMove != null){
-                                    int lastX = lastMove.getX();
-                                    int lastY = lastMove.getY();
-                                    spatneSpoje.add(new SpatnySpoj(lastX,lastY,lastMove.isVertical()));
-                                    System.out.println(lastMove.getX()+" "+lastMove.getY()+" "+lastMove.isVertical());
-                                    used[y][x + 1] = true;
-                                    used[y][x] = true;
-                                    useDomino(value1, value2, x, y, false);
-                                    Spoj spoj = new Spoj(x, y, false);
-                                    spoje.add(spoj);
-                                    rotatedCorrection = true;
-                                    return;
-                                }
-                            }
-                        }
-                        if (x - 1 >= 0) {
-                            if((getOrientation(x-1,y) & 1) == 1){
-                                value2 = map[y][x - 1];
-                                LastMove lastMove = null;
-                                while (isUsed(value1, value2) || used[y][x - 1] || VznikneLichy(x-1,y,false)) {
-                                    lastMove = backtrace();
-                                }
-                                if(lastMove != null){
-                                    int lastX = lastMove.getX();
-                                    int lastY = lastMove.getY();
-                                    spatneSpoje.add(new SpatnySpoj(lastX,lastY,lastMove.isVertical()));
-                                    System.out.println(lastMove.getX()+" "+lastMove.getY()+" "+lastMove.isVertical());
-                                    used[y][x - 1] = true;
-                                    used[y][x] = true;
-                                    useDomino(value1, value2, x - 1, y, false);
-                                    Spoj spoj = new Spoj(x - 1, y, false);
-                                    spoje.add(spoj);
-                                    rotatedCorrection = true;
-                                    return;
-                                }
-                            }
-                        }
-                    } else if (getOrientation(x,y) == 2){
-                        if (y + 1 < 7) {
-                            if((getOrientation(x,y+1) & 2) == 2){
-                                value2 = map[y + 1][x];
-                                LastMove lastMove = null;
-                                while (isUsed(value1, value2) || used[y + 1][x] || VznikneLichy(x,y,true)) {
-                                    lastMove = backtrace();
-                                }
-                                if(lastMove != null){
-                                    int lastX = lastMove.getX();
-                                    int lastY = lastMove.getY();
-                                    spatneSpoje.add(new SpatnySpoj(lastX,lastY,lastMove.isVertical()));
-                                    System.out.println(lastMove.getX()+" "+lastMove.getY()+" "+lastMove.isVertical());
-                                    used[y+1][x] = true;
-                                    used[y][x] = true;
-                                    useDomino(value1, value2, x, y, true);
-                                    Spoj spoj = new Spoj(x, y, true);
-                                    spoje.add(spoj);
-                                    rotatedCorrection = true;
-                                    return;
-                                }
-                            }
-                        }
-                        if (y - 1 >= 0) {
-                            if((getOrientation(x,y-1) & 2) == 2){
-                                value2 = map[y - 1][x];
-                                LastMove lastMove = null;
-                                while (isUsed(value1, value2) || used[y - 1][x] || VznikneLichy(x,y-1,true)) {
-                                    lastMove = backtrace();
-                                }
-                                if(lastMove != null){
-                                    int lastX = lastMove.getX();
-                                    int lastY = lastMove.getY();
-                                    spatneSpoje.add(new SpatnySpoj(lastX,lastY,lastMove.isVertical()));
-                                    System.out.println(lastMove.getX()+" "+lastMove.getY()+" "+lastMove.isVertical());
 
-                                    used[y-1][x] = true;
-                                    used[y][x] = true;
-                                    useDomino(value1, value2, x, y-1, true);
-                                    Spoj spoj = new Spoj(x, y-1, true);
-                                    spoje.add(spoj);
-                                    rotatedCorrection = true;
-                                    return;
-                                }
-                            }
-                        }
-
-                    }
-                }
+    /**
+     * function for solving game
+     */
+    public void vyresit(){
+        spoje.clear();
+        dupSpoje.clear();
+        napovedaSpoje.clear();
+        saved = false;
+        dominos = new Domino[7*4];
+        int value1 = 0;
+        int value2 = 0;
+        int shift = 0;
+        for(int i = 0;i<7*4;i++){
+            dominos[i] = new Domino(value1,value2);
+            value1++;
+            if(value1 > 6){
+                shift++;
+                value2++;
+                value1 = shift;
             }
         }
-        /*if(!rotatedCorrection){
-            ArrayList<Cell> cells = new ArrayList<>();
-            for(int y = 0;y<7;y++) {
-                for (int x = 0; x < 8; x++) {
-                    if (!used[y][x]) {
-                        cells.add(new Cell(x,y));
-                        if(x + 1 < 8){
-                            if(!used[y][x+1]) cells.add(new Cell(x+1,y));
-                        }
-                        if(x - 1 >= 0){
-                            if(!used[y][x-1]) cells.add(new Cell(x-1,y));
-                        }
-                        if(y - 1 >= 0){
-                            if(!used[y-1][x]) cells.add(new Cell(x,y-1));
-                        }
-                        if(y + 1 < 7){
-                            if(!used[y+1][x]) cells.add(new Cell(x,y+1));
-                        }
-                    }
-                }
-            }
-        }*/
+        for(int i = 0;i<7;i++){
+            Arrays.fill(used[i],false);
+
+        }
+        vyresitBunku(0,0);
     }
-    public LastMove backtrace(){
-        LastMove lastMove = lastMoves.pollLast();
-        if(lastMove != null){
-            int x = lastMove.getX();
-            int y = lastMove.getY();
-            lastMove.free();
-            if(lastMove.isVertical()){
-                used[y][x] = false;
-                used[y+1][x] = false;
-                for(Spoj spoj : spoje){
-                    if(spoj.isThisIndex(x,y)){
-                        spoje.remove(spoj);
-                        freeDomino(map[y][x],map[y+1][x]);
-                        break;
+
+    /**
+     * Tries to solve game, finding correct dominos
+     * @param x - col of map
+     * @param y - row of map
+     * @return false if any domino cant be created on empty cell -> backtracing and redoing previous dominos, returns true if everything is fine
+     */
+    private boolean vyresitBunku(int x, int y){
+        boolean down;
+        boolean right;
+        int value1;
+        int value2;
+        if(y == 6 && x >= 8) return true; // last empty cell
+        if(x >= 8){
+            y++;
+            x = 0;
+        }
+        if(used[y][x]){
+            if(vyresitBunku(x+1,y)) return true;
+        }
+        if(x < 7){
+            value1 = map[y][x];
+            value2 = map[y][x+1];
+            right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                    || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1);
+            if(!right){
+                useDomino(value1,value2,x,y, false);
+                if(!allDominosAreUsable()){
+                    freeDomino(value1,value2);
+                } else {
+                    used[y][x+1] = true;
+                    used[y][x] = true;
+                    Spoj spoj = new Spoj(x,y, false);
+                    spoje.add(spoj);
+
+                    if(vyresitBunku(x+2,y)){
+                        return true;
                     }
+                    used[y][x+1] = false;
+                    used[y][x] = false;
+                    spoje.remove(spoj);
+                    freeDomino(value1,value2);
                 }
-            } else {
-                used[y][x] = false;
-                used[y][x+1] = false;
-                for(Spoj spoj : spoje){
-                    if(spoj.isThisIndex(x,y)){
-                        spoje.remove(spoj);
-                        freeDomino(map[y][x],map[y][x+1]);
-                        break;
-                    }
-                }
+
             }
         }
-        return lastMove;
-    }
-    private boolean isSpatnySpoj(int x, int y, boolean vertical){
-        for(SpatnySpoj spoj : spatneSpoje){
-            if (spoj.x == x && spoj.y == y && vertical == spoj.vertical) return true;
+        if(y < 6){
+            value1 = map[y+1][x];
+            value2 = map[y][x];
+            down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                    || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2);
+
+            if(!down){
+                useDomino(value1,value2,x,y,true);
+                if(!allDominosAreUsable()){
+                    freeDomino(value1,value2);
+                } else {
+                    used[y+1][x] = true;
+                    used[y][x] = true;
+                    Spoj spoj = new Spoj(x,y, true);
+                    spoje.add(spoj);
+
+                    if(vyresitBunku(x+1,y)){
+                        return true;
+                    }
+                    used[y+1][x] = false;
+                    used[y][x] = false;
+                    spoje.remove(spoj);
+                    freeDomino(value1,value2);
+                }
+
+            }
         }
         return false;
+    }
+
+    /**
+     * Checks if all not used dominos can be used in game
+     * @return true if they can, false if they cant
+     */
+    private boolean allDominosAreUsable() {
+        for(Domino d : dominos) {
+            if(!d.isUsed()) {
+                boolean canBeCreated = false;
+                int value1 = d.getValue1();
+                int value2 = d.getValue2();
+                for(int y = 0;y<7;y++) {
+                    for (int x = 0; x < 8; x++) {
+                        if(!used[y][x]) {
+                            if(x < 7){
+                                boolean right = used[y][x] || used[y][x+1] || isUsed(value1,value2)  || VznikneLichy(x,y,false)
+                                        || !((getOrientation(x,y) & 1) == 1 && (getOrientation(x+1,y) & 1) == 1)
+                                        || !((map[y][x] == value1 && map[y][x+1] == value2) || (map[y][x] == value2 && map[y][x+1] == value1));
+                                if(!right) {
+                                    canBeCreated = true;
+                                    break;
+                                }
+                            }
+                            if(y < 6){
+                                boolean down = used[y][x] || used[y+1][x] || isUsed(value1,value2) || VznikneLichy(x,y,true)
+                                        || !((getOrientation(x,y) & 2) == 2 && (getOrientation(x,y+1) & 2) == 2)
+                                        || !((map[y][x] == value1 && map[y+1][x] == value2) || (map[y][x] == value2 && map[y+1][x] == value1));
+                                if(!down){
+                                    canBeCreated = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if(!canBeCreated) return false;
+            }
+        }
+        return true;
     }
 }

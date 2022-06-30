@@ -34,8 +34,7 @@ public class NapovedaMenu extends JPanel {
         jcomp1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                //panel.napoveda();
-                panel.backtrace();
+                panel.napoveda();
             }
         });
         add (jcomp2);

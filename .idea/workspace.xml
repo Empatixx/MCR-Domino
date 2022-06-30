@@ -7,6 +7,8 @@
     <list default="true" id="608fa690-8748-47af-8746-fd0f110259ee" name="Changes" comment="missing files">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/RESENI.bmp" beforeDir="false" afterPath="$PROJECT_DIR$/RESENI.bmp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/LastMove.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/NapovedaMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/NapovedaMenu.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/Panel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Panel.java" afterDir="false" />
     </list>
